@@ -23,22 +23,8 @@ const visitor = {
 
 
 traverse(ast, visitor)
-traverse(ast, {
-  StringLiteral(path) {
-    // 以下方法均可
-    // path.node.extra.raw = path.node.rawValue
-    // path.node.extra.raw = '"' + path.node.value + '"'
-    // delete path.node.extra
-    if (path.node.extra === undefined) {
-      path.node.extra = {
-        rowValve: path.node.value
-      }
-      return
-    }
-    delete path.node.extra.raw
-}
-})
-const result = generate(ast)
+// {jsescOption:{"minimal":true}} 把中文unicode还原成中文
+const result = generate(ast, {jsescOption:{"minimal":true}})
 console.log(result.code)
 
 // console.log(ast)
