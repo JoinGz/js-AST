@@ -60,11 +60,5 @@
 //     }
 //   } catch (_0xae3bb3) {}
 // }
-var a = {
-  b: 'b',
-  c: function () {
-    console.log(c);
-  }
-};
 console.log(a['b']);
 console.log(a['c']);

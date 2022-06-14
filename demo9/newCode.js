@@ -66,5 +66,5 @@ var a = {
     console.log(c);
   }
 };
-console.log(a['b']);
+console.log('b');
 console.log(a['c']);
