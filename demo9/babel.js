@@ -19,13 +19,38 @@ const contexts = {
  * 然后对对应的type进行处理
  */
 
+const allObjMap = new WeakMap()
+
 const visitor = {
-  'MemberExpression' (path) {
+  'VariableDeclaration' (path) {
     console.log(path.toString())
-    const {confident, value} = path.evaluate()
-      if (confident){
-          path.replaceInline(types.valueToNode(value))
+    const fatherPath = path.parentPath
+    const fatherSavedObj = allObjMap.get(fatherPath) ?? {}
+    const hasSavedObj = fatherSavedObj[path.node.declarations[0].id.name] ?? (fatherSavedObj[path.node.declarations[0].id.name] = {})
+    
+      const declarationType = path.node.declarations[0].init
+      if (types.isObjectExpression(declarationType)) {
+
+        const properties = declarationType.properties
+
+        for (let i = 0; i < properties.length; i++) {
+          const node = properties[i];
+          // StringLiteral 时从node.key.value上取值
+          hasSavedObj[node.key.name ?? node.key.value] = node.value
+        }
+        
+
+        // fatherSavedObj[path.node.declarations[0].id.name] = {
+          
+        // }
+
+        allObjMap.set(fatherPath, fatherSavedObj)
+
+      } else {
+        console.warn(`暂未匹配的类型`)
       }
+    
+    
   }
 }
 
@@ -34,71 +59,65 @@ const visitor = {
 const t = types;
 
 
+
+// 保存声明的对象
+traverse(ast, visitor)
+
+// 替换从已保存的对象上取值
 traverse(ast, {
-    VariableDeclarator(path) {
-      var node = path.node
-      if (!t.isObjectExpression(node.init)) return
-      var objPropertiesList = node.init.properties
-      if (objPropertiesList.length == 0) return
-      var objName = node.id.name
-      // 对定义的各个 方法 或 字符串 依次在作用域内查找是否有调用
-      objPropertiesList.forEach((prop) => {
-        var key = prop.key.value
-        if (!t.isStringLiteral(prop.value)) {
-          // 对方法属性的遍历
-          if (!prop.value.body) {
-            return
-          }
-          var retStmt = prop.value.body.body[0]
-
-          // 该path的最近父节点
-          var fnPath = path.getFunctionParent()
-
-          fnPath && fnPath.traverse({
-            CallExpression: function (_path) {
-              if (!t.isMemberExpression(_path.node.callee)) return
-              // 判断是否符合条件
-              var _node = _path.node.callee
-              if (!t.isIdentifier(_node.object) || _node.object.name !== objName) return
-              if (!t.isStringLiteral(_node.property) || _node.property.value != key) return
-              var args = _path.node.arguments
-              // 二元运算
-
-              if (t.isBinaryExpression(retStmt.argument) && args.length === 2) {
-                _path.replaceWith(t.binaryExpression(retStmt.argument.operator, args[0], args[1]))
-              } else if (t.isLogicalExpression(retStmt.argument) && args.length == 2) {
-                // 逻辑运算
-                _path.replaceWith(t.logicalExpression(retStmt.argument.operator, args[0], args[1]))
-              } else if (t.isCallExpression(retStmt.argument) && t.isIdentifier(retStmt.argument.callee)) {
-                // 函数调用
-                _path.replaceWith(t.callExpression(args[0], args.slice(1)))
-              }
-            },
-          })
-        } else {
-          // 对字符串属性的遍历
-          var retStmt = prop.value.value // 该path的最近父节点
-          var fnPath = path.getFunctionParent()
-          fnPath && fnPath.traverse({
-            MemberExpression: function (_path) {
-              var _node = _path.node
-              if (!t.isIdentifier(_node.object) || _node.object.name !== objName) return
-              if (!t.isStringLiteral(_node.property) || _node.property.value != key) return
-              _path.replaceWith(t.stringLiteral(retStmt))
-            },
-          })
+  // 成员表达式节点
+  "MemberExpression" (path) {
+    console.log(path.toString())
+    // const obj = 
+    if (path.node.object && path.node.property) {
+      const obj = path.node.object.name
+      // path.node.property.name 当时用.时 如 a.b
+      // path.node.property.value 当使用a['b']时，还要判断是不是字符串标识符
+      const property = path.node.property.name ?? path.node.property.value
+      const fatherPath = path.scope.getBinding(obj)?.path.parentPath.parentPath
+      const savedObj = allObjMap.get(fatherPath);
+      if (savedObj) {
+        const node = savedObj?.[obj]?.[property];
+        if (types.isNumericLiteral(node) || types.isStringLiteral(node)) {
+          // console.log(obj, property, 'yes')
+          // console.log(path.toString())
+          // path.replaceWith(types.valueToNode(node.value))
+          path.replaceWith(node)
         }
-      })
-      path.remove() // 遍历过的对象无用了，直接删除。
-    },
-  })
+      }
+    }
+  }
+})
 
+// 替换函数
 
+traverse(ast, {
+  "CallExpression" (path) {
+    console.log(path.toString())
+    // 需要是成员表达式节点
+    if (types.isMemberExpression(path.node.callee)) {
+      // 需要是 标识符来调用（就是我们写 JS 时自定义的名称，如变量名，函数名，属性名，都归为标识符）
+      // 还有其他调用如 [a()]()
+      if (types.isIdentifier(path.node.callee.object)) {
+        const obj = path.node.callee.object.name
+        const property = path.node.callee.property.name ?? path.node.callee.property.value
+  
+        const fatherPath = path.scope.getBinding(obj)?.path.parentPath.parentPath
+        const savedObj = allObjMap.get(fatherPath);
+        if (savedObj) {
+          const node = savedObj?.[obj]?.[property];
+          if (types.isFunctionExpression(node) && types.isReturnStatement(node.body.body[0])) {
+            if (types.isBinaryExpression(node.body.body[0].argument)) {
+              const newNode = types.binaryExpression(node.body.body[0].argument.operator, path.node.arguments[0], path.node.arguments[1])
+              path.replaceWith(newNode)
+            }
+          }
+        }
+      }
+    }
 
-// traverse(ast, visitor)
-
-
-
+  }
+})
 
 const result = generate(ast)
 // console.log(result.code)

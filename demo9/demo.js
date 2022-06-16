@@ -66,12 +66,31 @@
 
 
 
-var a = {
-  b: 'b',
-  c: function () {
-    console.log(c)
+// var a = {
+//   b: 'b',
+//   c: function () {
+//     return console.log(c)
+//   }
+// }
+
+// function b () {
+//   var a = {
+//     b: 'ab'
+//   }
+//   console.log(a.b)
+// }
+
+// console.log(a['b'])
+// console.log(a['c']())
+
+
+var aa = {
+  'bb': function (a1, a2) {
+    return a1 == a2;
+  },
+  'cc': function (cc1, cc2, cc3) {
+    return cc1(cc2, cc3);
   }
 }
-
-console.log(a['b'])
-console.log(a['c'])
+aa["bb"](_0x2efae8["length"], 8) // => _0x2efae8["length"] == 8
+aa["cc"](define, [], _0x23bf86) // => define([], _0x23bf86)

@@ -919,9 +919,9 @@ class AstDec {
 
   // astDec.changePropertyAccess()
 
-  astDec.saveAllObj()
-  astDec.stringflowerCode()
-  astDec.funcFlowerCode()
+  // astDec.saveAllObj()
+  // astDec.stringflowerCode()
+  // astDec.funcFlowerCode()
 
   astDec.saveAllObj()
   astDec.stringflowerCode()
