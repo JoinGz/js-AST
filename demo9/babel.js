@@ -21,6 +21,77 @@ const contexts = {
 
 const allObjMap = new WeakMap()
 
+function getPropertyList (node, path) {
+  const result = []
+  const lastProperty = node.property.name
+  result.push(lastProperty)
+  if (types.isMemberExpression(node.object)) {
+    return result.concat(getPropertyList(node.object))
+  } else {
+    result.push(node.object.name)
+    return result
+  }
+}
+
+function getFinallyObj (node, path) {
+  let propertyList = getPropertyList(node, path)
+  propertyList.reverse()
+  const firstPropertList = propertyList[0]
+  return getLastNode(propertyList, path, node, 0)
+  for (let i = 0; i < propertyList.length; i++) {
+    const property = propertyList[i];
+    const fatherPath = path.scope.getBinding(property)?.path.parentPath.parentPath
+    const savedObj = allObjMap.get(fatherPath);
+    if (savedObj) {
+      return getLastNode(node, path)
+    }
+  }
+}
+
+function getLastNode(propertyList, path, node, index) {
+  const fatherPath = path.scope.getBinding(propertyList[index])?.path.parentPath.parentPath
+  const savedObj = allObjMap.get(fatherPath);
+  if (savedObj) {
+    const obj = savedObj[propertyList[index]][propertyList[index+1]]
+    if (!obj) return node;
+    if (types.isIdentifier(obj, { type: 'Identifier' })) {
+      propertyList.splice(index + 1, 1, obj.name)
+      return getLastNode(propertyList, path, node, index+1)
+    }
+    return obj
+  } else {
+    return node
+  }
+}
+
+function findRealValue (node, path) {
+  if (types.isMemberExpression(node)) {
+
+    if (types.isMemberExpression(node.object)) {
+      return getFinallyObj(node, path)
+    }
+
+    const objName = node.object.name
+    const property = node.property.name ?? node.property.value
+    const fatherPath = path.scope.getBinding(objName)?.path.parentPath.parentPath
+    const savedObj = allObjMap.get(fatherPath);
+    if (savedObj) {
+      const node1 = savedObj?.[objName]?.[property];
+        if (types.isLiteral(node1)) {
+          // console.log(obj, property, 'yes')
+          // console.log(path.toString())
+          // path.replaceWith(types.valueToNode(node1.value))
+          // path.replaceWith(node1)
+          return node1
+        } else {
+          return findRealValue(node1, path)
+        }
+    }
+  } else {
+    return node
+  }
+}
+
 const visitor = {
   'VariableDeclaration' (path) {
     console.log(path.toString())
@@ -36,7 +107,7 @@ const visitor = {
         for (let i = 0; i < properties.length; i++) {
           const node = properties[i];
           // StringLiteral 时从node.key.value上取值
-          hasSavedObj[node.key.name ?? node.key.value] = node.value
+          hasSavedObj[node.key.name ?? node.key.value] = findRealValue(node.value, path)
         }
         
 
@@ -56,7 +127,6 @@ const visitor = {
 
 
 
-const t = types;
 
 
 
@@ -99,17 +169,27 @@ traverse(ast, {
       // 需要是 标识符来调用（就是我们写 JS 时自定义的名称，如变量名，函数名，属性名，都归为标识符）
       // 还有其他调用如 [a()]()
       if (types.isIdentifier(path.node.callee.object)) {
-        const obj = path.node.callee.object.name
+        const objName = path.node.callee.object.name
         const property = path.node.callee.property.name ?? path.node.callee.property.value
   
-        const fatherPath = path.scope.getBinding(obj)?.path.parentPath.parentPath
+        const fatherPath = path.scope.getBinding(objName)?.path.parentPath.parentPath
         const savedObj = allObjMap.get(fatherPath);
         if (savedObj) {
-          const node = savedObj?.[obj]?.[property];
+          const node = savedObj?.[objName]?.[property];
           if (types.isFunctionExpression(node) && types.isReturnStatement(node.body.body[0])) {
             if (types.isBinaryExpression(node.body.body[0].argument)) {
               const newNode = types.binaryExpression(node.body.body[0].argument.operator, path.node.arguments[0], path.node.arguments[1])
               path.replaceWith(newNode)
+            }
+            if (types.isCallExpression(node.body.body[0].argument)) {
+              // 找到调用者位置
+              const fnName = node.body.body[0].argument.callee.name
+              const index = node.params.findIndex(item => item.name === fnName)
+              const id = path.node.arguments[index]
+              path.node.arguments.splice(index, 1)
+              const newFn = types.callExpression(id, path.node.arguments,)
+              path.replaceWith(newFn)
+              
             }
           }
         }

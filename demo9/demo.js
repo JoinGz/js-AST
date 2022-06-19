@@ -64,14 +64,30 @@
 //   } catch (_0xae3bb3) {}
 // }
 
+var b = {
+  x: {
+    e : 'f'
+  }
+}
 
+var yy = {
+  zz: 'pp'
+}
 
-// var a = {
-//   b: 'b',
-//   c: function () {
-//     return console.log(c)
-//   }
-// }
+var m = {
+  z: yy
+}
+var jj = {
+  ll: m.z.zz
+}
+
+var a = {
+  b: b.x,
+  mutil: jj.ll,
+  c: function () {
+    return console.log(c)
+  }
+}
 
 // function b () {
 //   var a = {
@@ -80,17 +96,17 @@
 //   console.log(a.b)
 // }
 
-// console.log(a['b'])
+console.log(a['b'])
 // console.log(a['c']())
 
 
-var aa = {
-  'bb': function (a1, a2) {
-    return a1 == a2;
-  },
-  'cc': function (cc1, cc2, cc3) {
-    return cc1(cc2, cc3);
-  }
-}
-aa["bb"](_0x2efae8["length"], 8) // => _0x2efae8["length"] == 8
-aa["cc"](define, [], _0x23bf86) // => define([], _0x23bf86)
+// var aa = {
+//   'bb': function (a1, a2) {
+//     return a1 == a2;
+//   },
+//   'cc': function (cc1, cc2, cc3) {
+//     return cc1(cc2, cc3);
+//   }
+// }
+// aa["bb"](_0x2efae8["length"], 8) // => _0x2efae8["length"] == 8
+// aa["cc"](define, [], _0x23bf86) // => define([], _0x23bf86)
