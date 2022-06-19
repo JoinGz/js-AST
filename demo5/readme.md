@@ -1,18 +1,5 @@
-- 解密函数还原混淆的文字
+- 找到解密函数，用执行解密函数的值替换当前节点
 
-`traverse`里增加一个处理函数即可
 
-```js
-const visitor = {
-  StringLiteral(path) {
-      // 以下方法均可
-      // path.node.extra.raw = path.node.rawValue
-      // path.node.extra.raw = '"' + path.node.value + '"'
-      // delete path.node.extra
-      delete path.node.extra.raw
-  }
-}
-
-traverse(ast, visitor)
-```
+找到解密函数的位置，目前通过的调用次数来寻找，因为还原的次数比较多。找到位置后把其前面的声明（解密函数的依赖）和他自己一起取出来放到vm中执行。每次遇到加密函数调用的地方就调用vm中的解密函数，用返回值替换掉当前的path即可。
 
